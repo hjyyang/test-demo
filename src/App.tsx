@@ -1,12 +1,11 @@
-import React, { memo, useCallback, useRef } from "react";
+import React, { memo, useCallback, useLayoutEffect, useRef } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import "./App.less";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { useGSAP } from "@gsap/react";
-gsap.registerPlugin(useGSAP, ScrollTrigger, ScrollToPlugin);
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 import videosrc from "./assets/intro.mp4";
 
 type PlayerType = ReturnType<typeof videojs>;
@@ -80,94 +79,168 @@ const contentP = [
 			<small>Paulo Coelho</small>
 		</i>
 	</strong>,
-	<br></br>,
-	<br></br>,
+	<>
+		<br />
+		<br />
+	</>,
+	<>
+		<br />
+		<br />
+	</>,
 	"Feed is that conspiracy:",
 	"the conspiracy of trust.",
-	<br></br>,
-	<br></br>,
+	<>
+		<br />
+		<br />
+	</>,
+	<>
+		<br />
+		<br />
+	</>,
 	"Trust is the single",
 	"most important ingredient ",
 	"missing from digital relationships.",
-	<br></br>,
-	<br></br>,
+	<>
+		<br />
+		<br />
+	</>,
+	<>
+		<br />
+		<br />
+	</>,
 	"Boston Consulting Group ",
 	"and the World Economic Forum ",
 	"forecast the digital economy ",
 	"to be worth between ",
 	<strong>1.5 and 2.5 trillion dollars</strong>,
 	<strong>by 2016.</strong>,
-	<br></br>,
-	<br></br>,
-	"The difference ",
 	<>
-		is
+		<br />
+		<br />
+	</>,
+	<>
+		<br />
+		<br />
+	</>,
+	"The difference ",
+	"between those numbers ",
+	<>
+		{`is `}
 		<a href="http://www3.weforum.org/docs/WEF_IT_RethinkingPersonalData_Report_2012.pdf " target="_blank">
 			trust
 		</a>
 		.
 	</>,
-	"The difference ",
-	"between those numbers ",
-	<br></br>,
-	<br></br>,
 	<>
-		Feed is a digital mechanism of <strong>trust</strong>
+		<br />
+		<br />
+	</>,
+	<>
+		<br />
+		<br />
+	</>,
+	<>
+		Feed is a digital mechanism of
+		<strong>trust</strong>
 	</>,
 ];
-function App() {
+
+const ScrollText = memo(() => {
 	const container = useRef<HTMLDivElement | null>(null);
+	const wrapper = useRef<HTMLDivElement | null>(null);
 	const boxes = useRef<gsap.DOMTarget[]>([]);
 	const handleTo = useCallback(() => {
 		boxes.current = gsap.utils.toArray(".starwars-wrapper p");
 		boxes.current.forEach((box, index) => {
-			gsap.to(box, {
-				opacity: 1 - index * 0.25,
-				scrollTrigger: box,
-				yPercent: index * 100,
-				scale: 1 - index * 0.1,
-			});
+			(box as HTMLElement).style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
+				index * 100
+			}%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
 		});
 	}, []);
-	const main = useRef<HTMLDivElement | null>(null);
-	useGSAP(
-		() => {
-			handleTo();
-			let currentScrollPosition = 0;
-			const handleScroll = (e: Observer) => {
-				// 计算滚动的距离
-				const scrollDistance = e.deltaY * -1;
-				// 更新滚动位置
-				currentScrollPosition += scrollDistance;
-				if (currentScrollPosition > 0) {
-					currentScrollPosition = 0;
-					handleTo();
+	const scrollHeight = useRef(0);
+	const getSize = () => {
+		scrollHeight.current = container.current?.scrollHeight || 0;
+	};
+	useLayoutEffect(() => {
+		window.addEventListener("resize", getSize);
+		return () => {
+			window.removeEventListener("resize", getSize);
+		};
+	}, []);
+	useGSAP(() => {
+		handleTo();
+		getSize();
+		let currentScrollPosition = 0;
+		const height = wrapper.current?.clientHeight || 0;
+		const handleScroll = (e: Observer) => {
+			const absCurrentScrollPosition = Math.abs(currentScrollPosition);
+			if (absCurrentScrollPosition > scrollHeight.current) currentScrollPosition = -scrollHeight.current;
+			// 计算滚动的距离
+			const scrollDistance = e.deltaY;
+			// 更新滚动位置
+			currentScrollPosition += scrollDistance * -0.4;
+			if (currentScrollPosition > 0) currentScrollPosition = 0;
+			// console.log(currentScrollPosition);
+			//计算滚动比例
+			boxes.current.forEach((box, index) => {
+				if (absCurrentScrollPosition < index * 40) {
+					(box as HTMLElement).style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
+						index * 100
+					}%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
 					return;
 				}
-				// console.log(currentScrollPosition, scrollDistance);
-				boxes.current.forEach((box, index) => {
-					const baseYPercent = index * 100;
-					const newYPercent = baseYPercent + (currentScrollPosition / 68) * 100;
-					gsap.to(box, {
-						opacity: 1 - index * 0.25,
-						scrollTrigger: box,
-						yPercent: newYPercent,
-						scale: 1 - index * 0.1,
-					});
-				});
-			};
-			ScrollTrigger.observe({
-				target: ".starwars-container",
-				type: "wheel",
-				preventDefault: true,
-				onUp: handleScroll,
-				onDown: handleScroll,
+				const el = box as HTMLElement,
+					baseYPercent = index * 100;
+				const percent = (currentScrollPosition + index * 40) / height;
+				let newYPercent = baseYPercent + percent * 100;
+				if (newYPercent < -400) newYPercent = -400;
+				if (newYPercent > baseYPercent) newYPercent = baseYPercent;
+				//透明度
+				const baseOpacity = 1 - index * 0.25,
+					opacityPercent = percent / 4;
+				let newOpacity = 0;
+				if (index * -0.25 > opacityPercent) {
+					newOpacity = 2 - (baseOpacity - opacityPercent);
+				} else {
+					newOpacity = baseOpacity - opacityPercent;
+				}
+				newOpacity = Math.max(0, Math.min(1, newOpacity));
+				//scale
+				const baseScale = 1 - index * 0.1;
+				let newScale = baseScale - percent / 10;
+				if (newScale > 1.4) newScale = 1.4;
+				if (index === boxes.current.length - 1) {
+					//最后一行
+					if (newScale > 1) {
+						newScale = 1;
+						newOpacity = 1;
+						newYPercent = 0;
+					}
+				}
+				el.style.cssText = `opacity: ${newOpacity}; transform: translate(0%, ${newYPercent}%) translate3d(0px, 0px, 0px) scale(${newScale}, ${newScale});`;
 			});
-		},
-		{ scope: main }
-	);
+		};
+		ScrollTrigger.observe({
+			target: ".starwars-container",
+			type: "wheel",
+			preventDefault: true,
+			onUp: handleScroll,
+			onDown: handleScroll,
+		});
+	});
 	return (
-		<div className="cineslider-container" ref={main}>
+		<div className="starwars-container" ref={container}>
+			<div className="starwars-wrapper" ref={wrapper}>
+				{contentP.map((item, index) => {
+					return <p key={index}>{item}</p>;
+				})}
+			</div>
+		</div>
+	);
+});
+function App() {
+	return (
+		<div className="cineslider-container">
 			<div id="homepage-introduction" className="cineslider-slide">
 				<div className="border" data-position="top"></div>
 				<div className="border" data-position="right"></div>
@@ -188,25 +261,7 @@ function App() {
 				<div className="videobg-container">
 					<VideoJS />
 				</div>
-				<div className="starwars-container" ref={container}>
-					<div className="starwars-wrapper">
-						{contentP.map((item, index) => {
-							return (
-								<p
-									key={index}
-									// style={{
-									// 	opacity: 1 - index * 0.25,
-									// 	transform: `${index !== 0 ? `translate(0%, ${index}00%)` : ""} matrix(${
-									// 		1 - index * 0.1
-									// 	}, 0, 0, ${1 - index * 0.1}, 0, 0)`,
-									// }}
-								>
-									{item}
-								</p>
-							);
-						})}
-					</div>
-				</div>
+				<ScrollText />
 			</div>
 			<div id="homepage-technology" className="cineslider-slide"></div>
 		</div>
