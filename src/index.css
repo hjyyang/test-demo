@@ -6,5 +6,12 @@
 body {
 	overflow: hidden;
 	font-family: "Avenir Next Regular", sans-serif;
-    line-height: 1.42857143;
+	line-height: 1.42857143;
+}
+a {
+	color: #337ab7;
+	text-decoration: none;
+}
+p {
+	margin: 0 0 10px;
 }

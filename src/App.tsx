@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useLayoutEffect, useRef } from "react";
+import React, { memo, useCallback, useRef, useState } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import "./App.less";
@@ -140,12 +140,11 @@ const contentP = [
 		<br />
 	</>,
 	<>
-		Feed is a digital mechanism of
-		<strong>trust</strong>
+		Feed is a digital mechanism of <strong>trust</strong>
 	</>,
 ];
 
-const ScrollText = memo(() => {
+const ScrollText = memo(({ changePercent }: { changePercent: (percent: number) => void }) => {
 	const container = useRef<HTMLDivElement | null>(null);
 	const wrapper = useRef<HTMLDivElement | null>(null);
 	const boxes = useRef<gsap.DOMTarget[]>([]);
@@ -157,45 +156,49 @@ const ScrollText = memo(() => {
 			}%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
 		});
 	}, []);
-	const scrollHeight = useRef(0);
-	const getSize = () => {
-		scrollHeight.current = container.current?.scrollHeight || 0;
-	};
-	useLayoutEffect(() => {
-		window.addEventListener("resize", getSize);
-		return () => {
-			window.removeEventListener("resize", getSize);
-		};
-	}, []);
 	useGSAP(() => {
 		handleTo();
-		getSize();
-		let currentScrollPosition = 0;
-		const height = wrapper.current?.clientHeight || 0;
+		let currentScrollPosition = 0,
+			oldScrollPosition = 0;
+		const height = wrapper.current?.clientHeight || 0,
+			lastNum = boxes.current.length - 1,
+			maxScroll = -lastNum * height - lastNum * 40;
 		const handleScroll = (e: Observer) => {
-			const absCurrentScrollPosition = Math.abs(currentScrollPosition);
-			if (absCurrentScrollPosition > scrollHeight.current) currentScrollPosition = -scrollHeight.current;
 			// 计算滚动的距离
-			const scrollDistance = e.deltaY;
-			// 更新滚动位置
-			currentScrollPosition += scrollDistance * -0.4;
+			const scrollDistance = -e.deltaY;
+			// 更新滚动位置，0.3为降低滚轮滚动速度，模拟阻尼效果
+			currentScrollPosition += scrollDistance * 0.3;
+			//限制滚轮滚动值不能超过0
 			if (currentScrollPosition > 0) currentScrollPosition = 0;
-			// console.log(currentScrollPosition);
+			let absCurrentScrollPosition = Math.abs(currentScrollPosition);
+			//限制滚轮滚动值不超过容器的maxScroll
+			if (absCurrentScrollPosition > -maxScroll) currentScrollPosition = maxScroll;
+			//当前滚轮滚动位置与上次滚动位置相同，不往下执行
+			if (currentScrollPosition === oldScrollPosition) return;
+			oldScrollPosition = currentScrollPosition;
+			absCurrentScrollPosition = Math.abs(currentScrollPosition);
+			changePercent(Math.abs(currentScrollPosition / maxScroll));
 			//计算滚动比例
 			boxes.current.forEach((box, index) => {
+				const el = box as HTMLElement,
+					//初始移动比例
+					baseYPercent = index * 100;
+				//每一行在滚轮滚动过40像素后再移动
 				if (absCurrentScrollPosition < index * 40) {
-					(box as HTMLElement).style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
+					el.style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
 						index * 100
 					}%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
 					return;
 				}
-				const el = box as HTMLElement,
-					baseYPercent = index * 100;
+				//每行移动比例
 				const percent = (currentScrollPosition + index * 40) / height;
+				//每行当前需要移动比例
 				let newYPercent = baseYPercent + percent * 100;
+				//如小于-400，则最小为-400
 				if (newYPercent < -400) newYPercent = -400;
+				//如大于初始比例，则最大为初始比例
 				if (newYPercent > baseYPercent) newYPercent = baseYPercent;
-				//透明度
+				//初始透明度
 				const baseOpacity = 1 - index * 0.25,
 					opacityPercent = percent / 4;
 				let newOpacity = 0;
@@ -205,17 +208,15 @@ const ScrollText = memo(() => {
 					newOpacity = baseOpacity - opacityPercent;
 				}
 				newOpacity = Math.max(0, Math.min(1, newOpacity));
-				//scale
+				//缩放
 				const baseScale = 1 - index * 0.1;
 				let newScale = baseScale - percent / 10;
 				if (newScale > 1.4) newScale = 1.4;
-				if (index === boxes.current.length - 1) {
-					//最后一行
-					if (newScale > 1) {
-						newScale = 1;
-						newOpacity = 1;
-						newYPercent = 0;
-					}
+				//最后一行
+				if (index === boxes.current.length - 1 && newScale > 1) {
+					newScale = 1;
+					newOpacity = 1;
+					newYPercent = 0;
 				}
 				el.style.cssText = `opacity: ${newOpacity}; transform: translate(0%, ${newYPercent}%) translate3d(0px, 0px, 0px) scale(${newScale}, ${newScale});`;
 			});
@@ -238,33 +239,76 @@ const ScrollText = memo(() => {
 		</div>
 	);
 });
-function App() {
+const Header = ({ percent }: { percent: number }) => {
 	return (
-		<div className="cineslider-container">
-			<div id="homepage-introduction" className="cineslider-slide">
-				<div className="border" data-position="top"></div>
-				<div className="border" data-position="right"></div>
-				<div className="border" data-position="left"></div>
-				<div className="border" data-position="bottom"></div>
-				<div className="intro-paragraph">
-					<p>
-						Feed is an intelligent property rights and payments platform, using intelligent software and
-						digital security that goes well beyond 'military-grade' to give users true ownership of their
-						data and IP.
-					</p>
-					<p>
-						Feed facilitates trusted exchanges of users' progressively-perfecting data assets with
-						businesses, researchers, and governments in a <b>trusted</b>, audited, and independently
-						verifiable manner; on their own terms and conditions.
-					</p>
+		<header>
+			<a href="#/" className="logo"></a>
+			<div className="navigation" style={{ display: "block" }}>
+				<div className="group" data-page-id="homepage-page">
+					<ul>
+						<li>
+							<a href="#homepage-introduction" className="active">
+								Introduction
+								<div className="progress-border">
+									<div className="progress-line" style={{ width: percent * 100 + "%" }}></div>
+								</div>
+							</a>
+						</li>
+						<li>
+							<a href="#homepage-technology">The Technology</a>
+						</li>
+						<li>
+							<a href="#homepage-tech-spotlight">Tech Spotlight</a>
+						</li>
+						<li>
+							<a href="#homepage-why-music">Why Music?</a>
+						</li>
+					</ul>
 				</div>
-				<div className="videobg-container">
-					<VideoJS />
-				</div>
-				<ScrollText />
 			</div>
-			<div id="homepage-technology" className="cineslider-slide"></div>
-		</div>
+			<a href="#" className="toggle-button">
+				<span className="lines"></span>
+			</a>
+		</header>
+	);
+};
+function App() {
+	const [percent, setPercent] = useState(0);
+    
+	const changePercent = useCallback((percent: number) => {
+		setPercent(percent);
+	}, []);
+	return (
+		<>
+			<Header percent={percent} />
+			<div className="main-container">
+				<div className="cineslider-container">
+					<div id="homepage-introduction" className="cineslider-slide">
+						<div className="border" data-position="top"></div>
+						<div className="border" data-position="right"></div>
+						<div className="border" data-position="left"></div>
+						<div className="border" data-position="bottom"></div>
+						<div className="intro-paragraph">
+							<p>
+								Feed is an intelligent property rights and payments platform, using intelligent software
+								and digital security that goes well beyond 'military-grade' to give users true ownership
+								of their data and IP.
+							</p>
+							<p>
+								Feed facilitates trusted exchanges of users' progressively-perfecting data assets with
+								businesses, researchers, and governments in a <b>trusted</b>, audited, and independently
+								verifiable manner; on their own terms and conditions.
+							</p>
+						</div>
+						<div className="videobg-container">
+							<VideoJS />
+						</div>
+						<ScrollText changePercent={changePercent} />
+					</div>
+					<div id="homepage-technology" className="cineslider-slide"></div>
+				</div>
+			</div>
+		</>
 	);
 }
 
