@@ -63,7 +63,10 @@
 			background-repeat: no-repeat;
 			background-color: #000;
 			> div {
+				position: relative;
 				opacity: 0.6;
+				width: 100%;
+				height: 100%;
 			}
 		}
 		.starwars-container {
@@ -269,6 +272,46 @@ header {
 				display: block;
 				content: "";
 			}
+		}
+	}
+}
+
+@media (max-width: 991px) {
+	#homepage-introduction .intro-paragraph {
+		display: none !important;
+	}
+	header .navigation {
+		font-size: 12px;
+		ul li {
+			padding: 0 10px;
+		}
+	}
+}
+@media (max-width: 767px) {
+	header {
+		.navigation li {
+			display: none !important;
+		}
+		.logo {
+			top: 30px;
+			left: 30px;
+		}
+		.logo,
+		.logo:after,
+		.logo:before,
+		.toggle-button {
+			width: 28px;
+			height: 28px;
+		}
+		.toggle-button {
+			top: 30px;
+			right: 30px;
+		}
+	}
+	.cineslider-container #homepage-introduction .starwars-container {
+		font-size: 22px;
+		p {
+			padding-bottom: 20px;
 		}
 	}
 }

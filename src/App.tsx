@@ -66,7 +66,11 @@ const VideoJS = memo(() => {
 
 	return (
 		<div data-vjs-player>
-			<video ref={videoRef} className="video-js vjs-big-play-centered" />
+			<video
+				ref={videoRef}
+				style={{ width: "100%", height: "100%", objectFit: "fill" }}
+				className="video-js vjs-big-play-centered"
+			/>
 		</div>
 	);
 });
