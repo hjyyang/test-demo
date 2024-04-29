@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import "./App.less";
@@ -144,7 +144,7 @@ const contentP = [
 	</>,
 ];
 
-const ScrollText = memo(({ changePercent }: { changePercent: (percent: number) => void }) => {
+const ScrollText = memo(({ changePercent }: { changePercent: (percent: number, bottom: boolean) => void }) => {
 	const container = useRef<HTMLDivElement | null>(null);
 	const wrapper = useRef<HTMLDivElement | null>(null);
 	const boxes = useRef<gsap.DOMTarget[]>([]);
@@ -173,11 +173,16 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number) =
 			let absCurrentScrollPosition = Math.abs(currentScrollPosition);
 			//限制滚轮滚动值不超过容器的maxScroll
 			if (absCurrentScrollPosition > -maxScroll) currentScrollPosition = maxScroll;
+			//滚动比例
+			const percent = Math.abs(currentScrollPosition / maxScroll);
 			//当前滚轮滚动位置与上次滚动位置相同，不往下执行
-			if (currentScrollPosition === oldScrollPosition) return;
+			if (currentScrollPosition === oldScrollPosition) {
+				if (percent === 1) changePercent(percent, true);
+				return;
+			}
 			oldScrollPosition = currentScrollPosition;
 			absCurrentScrollPosition = Math.abs(currentScrollPosition);
-			changePercent(Math.abs(currentScrollPosition / maxScroll));
+			changePercent(percent, false);
 			//计算滚动比例
 			boxes.current.forEach((box, index) => {
 				const el = box as HTMLElement,
@@ -223,7 +228,7 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number) =
 		};
 		ScrollTrigger.observe({
 			target: ".starwars-container",
-			type: "wheel",
+			type: "wheel,touch",
 			preventDefault: true,
 			onUp: handleScroll,
 			onDown: handleScroll,
@@ -273,14 +278,113 @@ const Header = ({ percent }: { percent: number }) => {
 	);
 };
 function App() {
-	const [percent, setPercent] = useState(0);
-    
-	const changePercent = useCallback((percent: number) => {
-		setPercent(percent);
+	const [scrollInfo, setScrollInfo] = useState({ percent: 0, bottom: false });
+	const newPercent = useRef(0);
+	const lock = useRef(false);
+	const changePercent = useCallback((percent: number, bottom: boolean) => {
+		setScrollInfo({ percent, bottom });
+		newPercent.current = percent;
+		if (percent > 0.05) {
+			if (!lock.current) {
+				lock.current = true;
+				gsap.fromTo(
+					".intro-paragraph",
+					{ opacity: 1, display: "block" },
+					{ opacity: 0, display: "none", duration: 1.5 }
+				);
+			}
+		} else {
+			if (lock.current) {
+				lock.current = false;
+				gsap.fromTo(
+					".intro-paragraph",
+					{ opacity: 0, display: "none" },
+					{ opacity: 1, display: "block", duration: 1.5 }
+				);
+			}
+		}
 	}, []);
+	useEffect(() => {
+		if (scrollInfo.bottom) {
+			//文本滚动触底
+		}
+	}, [scrollInfo.bottom]);
+	useGSAP(() => {
+		let animating = false,
+			slide = gsap.utils.toArray<gsap.DOMTarget>(".cineslider-slide"),
+			currentIndex = -1,
+			pageIndex = 0,
+			shifter = gsap.utils.toArray<gsap.DOMTarget>(".cineslider-shifter"),
+			tl = gsap.timeline({
+				defaults: { duration: 1.8, ease: "power1.inOut" },
+				onComplete: () => {
+					animating = false;
+				},
+			});
+		slide.forEach((item, index) => {
+			if (index !== pageIndex) gsap.set(item, { display: "none" });
+		});
+		const tl2 = gsap.timeline({
+				defaults: { duration: 1.2, ease: "power1.inOut" },
+			}),
+			tl3 = gsap.timeline({
+				defaults: { duration: 1.8, ease: "power1.inOut" },
+			});
+		function gotoSection(index: number, direction: 1 | -1) {
+			if (index < -1 || index > slide.length - 2) return;
+			if (newPercent.current === 1) {
+				animating = true;
+				if (direction === 1) {
+					//向下
+					tl2.fromTo(
+						shifter[0],
+						{ display: "block", zIndex: 1, yPercent: 100 },
+						{ display: "block", zIndex: 1, yPercent: -100 }
+					);
+					tl3.fromTo(
+						shifter[1],
+						{ display: "block", zIndex: 1, yPercent: 100 },
+						{ display: "block", zIndex: 1, yPercent: -100 }
+					);
+					tl.fromTo(
+						slide[index + 1],
+						{ display: "block", zIndex: 1, yPercent: 100 },
+						{ display: "block", zIndex: 1, yPercent: 0 }
+					).set(slide[index], { display: "none" });
+				} else {
+					//向上
+					tl3.fromTo(
+						shifter[0],
+						{ display: "block", zIndex: 1, yPercent: -100 },
+						{ display: "block", zIndex: 1, yPercent: 100 }
+					);
+					tl2.fromTo(
+						shifter[1],
+						{ display: "block", zIndex: 1, yPercent: -100 },
+						{ display: "block", zIndex: 1, yPercent: 100 }
+					);
+					tl.fromTo(
+						slide[index + 1],
+						{ display: "block", zIndex: 2, yPercent: -100 },
+						{ display: "block", zIndex: 2, yPercent: 0 }
+					)
+						.set(slide[index + 2], { display: "none" })
+						.set(slide[index + 1], { zIndex: 1 });
+				}
+				currentIndex = index;
+			}
+		}
+		ScrollTrigger.observe({
+			target: ".main-container",
+			type: "wheel,touch",
+			preventDefault: true,
+			onUp: () => !animating && gotoSection(currentIndex - 1, -1),
+			onDown: () => !animating && gotoSection(currentIndex + 1, 1),
+		});
+	});
 	return (
 		<>
-			<Header percent={percent} />
+			<Header percent={scrollInfo.percent} />
 			<div className="main-container">
 				<div className="cineslider-container">
 					<div id="homepage-introduction" className="cineslider-slide">
@@ -288,7 +392,7 @@ function App() {
 						<div className="border" data-position="right"></div>
 						<div className="border" data-position="left"></div>
 						<div className="border" data-position="bottom"></div>
-						<div className="intro-paragraph">
+						<div className="intro-paragraph" style={{ display: "block" }}>
 							<p>
 								Feed is an intelligent property rights and payments platform, using intelligent software
 								and digital security that goes well beyond 'military-grade' to give users true ownership
@@ -306,6 +410,8 @@ function App() {
 						<ScrollText changePercent={changePercent} />
 					</div>
 					<div id="homepage-technology" className="cineslider-slide"></div>
+					<div className="cineslider-shifter" style={{ backgroundColor: "rgb(230, 230, 230)" }}></div>
+					<div className="cineslider-shifter" style={{ backgroundColor: "rgb(53, 1, 127)" }}></div>
 				</div>
 			</div>
 		</>

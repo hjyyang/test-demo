@@ -62,6 +62,9 @@
 			background-position: 50% 50%;
 			background-repeat: no-repeat;
 			background-color: #000;
+			> div {
+				opacity: 0.6;
+			}
 		}
 		.starwars-container {
 			position: relative;
@@ -101,15 +104,21 @@
 			}
 		}
 	}
-	// #homepage-technology {
-	// 	background-color: #000;
-	// }
-	.cineslider-slide {
+	#homepage-technology {
+		background-color: #000;
+	}
+	.cineslider-slide,
+	.cineslider-shifter {
 		left: 0;
 		height: 100%;
 		top: 0;
 		width: 100%;
 		position: absolute;
+	}
+	.cineslider-shifter {
+		transform: translateZ(0);
+		z-index: 2;
+		display: none;
 	}
 }
 
