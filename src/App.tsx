@@ -171,7 +171,7 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number, b
 			// 计算滚动的距离
 			const scrollDistance = -e.deltaY;
 			// 更新滚动位置，0.3为降低滚轮滚动速度，模拟阻尼效果
-			currentScrollPosition += scrollDistance * 0.3;
+			currentScrollPosition += scrollDistance * 0.5;
 			//限制滚轮滚动值不能超过0
 			if (currentScrollPosition > 0) currentScrollPosition = 0;
 			let absCurrentScrollPosition = Math.abs(currentScrollPosition);
@@ -194,9 +194,15 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number, b
 					baseYPercent = index * 100;
 				//每一行在滚轮滚动过40像素后再移动
 				if (absCurrentScrollPosition < index * 40) {
-					el.style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
-						index * 100
-					}%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
+					// el.style.cssText = `opacity: ${1 - index * 0.25}; transform: translate(0%, ${
+					// 	index * 100
+					// }%) translate3d(0px, 0px, 0px) scale(${1 - index * 0.1}, ${1 - index * 0.1});`;
+					gsap.to(el, {
+						opacity: 1 - index * 0.25,
+						transform: `translate(0%, ${index * 100}%) translate3d(0px, 0px, 0px) scale(${
+							1 - index * 0.1
+						}, ${1 - index * 0.1})`,
+					});
 					return;
 				}
 				//每行移动比例
@@ -219,7 +225,7 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number, b
 				newOpacity = Math.max(0, Math.min(1, newOpacity));
 				//缩放
 				const baseScale = 1 - index * 0.1;
-				let newScale = baseScale - percent / 10;
+				let newScale = baseScale - percent / 11;
 				if (newScale > 1.4) newScale = 1.4;
 				//最后一行
 				if (index === boxes.current.length - 1 && newScale > 1) {
@@ -227,7 +233,11 @@ const ScrollText = memo(({ changePercent }: { changePercent: (percent: number, b
 					newOpacity = 1;
 					newYPercent = 0;
 				}
-				el.style.cssText = `opacity: ${newOpacity}; transform: translate(0%, ${newYPercent}%) translate3d(0px, 0px, 0px) scale(${newScale}, ${newScale});`;
+				// el.style.cssText = `opacity: ${newOpacity}; transform: translate(0%, ${newYPercent}%) translate3d(0px, 0px, 0px) scale(${newScale}, ${newScale});`;
+				gsap.to(el, {
+					opacity: newOpacity,
+					transform: `translate(0%, ${newYPercent}%) translate3d(0px, 0px, 0px) scale(${newScale}, ${newScale})`,
+				});
 			});
 		};
 		ScrollTrigger.observe({
